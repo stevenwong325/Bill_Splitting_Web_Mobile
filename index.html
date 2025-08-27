@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>賬單分攤應用 (手機版)</title>
+    <title>賬單分攤應用</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* --- Global Mobile-First Styles --- */
@@ -226,8 +226,24 @@
             padding: 8px 0;
             gap: 10px;
         }
-        .participant-input, .currency-rate { flex: 1; }
-        .currency-code { width: 80px; }
+        
+        .participant-input, .currency-rate {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-right: 10px;
+            font-size: 16px;
+        }
+        
+        .currency-code {
+            width: 80px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            text-transform: uppercase;
+        }
 
         /* --- Modal --- */
         .modal {
@@ -280,6 +296,11 @@
             font-size: 12px;
             margin-left: 5px;
         }
+
+        .participants-list {
+            margin: 20px 0;
+        }
+
     </style>
 </head>
 <body>
@@ -372,7 +393,7 @@
                     <div id="customSplitContainer" class="split-grid"></div>
                 </div>
                 
-                <button id="addItemBtn" class="btn">添加項目</button>
+                <button id="addItemBtn" class="btn" style="margin-top: 20px;">添加項目</button>
             </div>
         </div>
 
@@ -381,7 +402,7 @@
             <div class="settings-container">
                 <div class="settings-section">
                     <h2><i class="fas fa-users"></i> 設置參與人員</h2>
-                    <div id="participantsList"></div>
+                    <div id="participantsList" class="participants-list"></div>
                     <button id="addParticipantBtn" class="btn" style="margin-top: 15px; background: #5cb85c;"><i class="fas fa-plus"></i> 添加人員</button>
                 </div>
                 
@@ -393,7 +414,7 @@
                     </div>
                     
                     <h3>匯率設置 (1 基礎貨幣 = ? 外幣)</h3>
-                    <div id="currencyList"></div>
+                    <div id="currencyList" class="participants-list"></div>
                     <button id="addCurrencyBtn" class="btn" style="margin-top: 15px; background: #5cb85c;"><i class="fas fa-plus"></i> 添加貨幣</button>
                 </div>
                 
@@ -454,8 +475,7 @@
     </div>
 
     <script>
-        // The entire JavaScript from the original index.html is copied here.
-        // It is long, so it's represented by this comment, but the full script is included in the file.
+        // 初始數據
         let participants = ['A', 'B', 'C', 'D'];
         let expenses = [];
         let baseCurrency = 'HKD';
@@ -466,6 +486,7 @@
             'TWD': { rate: 3.92, symbol: 'NT$' }
         };
 
+        // DOM元素
         const mainPage = document.getElementById('mainPage');
         const settingsPage = document.getElementById('settingsPage');
         const settingsBtn = document.getElementById('settingsBtn');
@@ -502,35 +523,41 @@
 
         let currentEditIndex = -1;
 
+        // 初始化頁面
         document.addEventListener('DOMContentLoaded', () => {
             loadFromLocalStorage();
-            renderAll();
-            
-            settingsBtn.addEventListener('click', showSettingsPage);
-            document.getElementById('returnBtn').addEventListener('click', showMainPage);
-            saveSettingsBtn.addEventListener('click', saveSettings);
-            addParticipantBtn.addEventListener('click', addParticipantField);
-            addCurrencyBtn.addEventListener('click', addCurrencyField);
-            addItemBtn.addEventListener('click', addNewExpense);
-            splitMethod.addEventListener('change', () => toggleCustomSplitSection(splitMethod.value, customSplitSection, customSplitContainer));
-            closeModalBtn.addEventListener('click', closeModal);
-            saveEditBtn.addEventListener('click', saveEdit);
-            editSplitMethod.addEventListener('change', () => toggleCustomSplitSection(editSplitMethod.value, editCustomSplitSection, editCustomSplitContainer));
-            
-            window.addEventListener('click', (e) => {
-                if (e.target === editModal) closeModal();
-            });
-        });
-
-        function renderAll() {
             renderExpenseTable();
+            renderParticipantsSettings();
+            renderCurrencySettings();
             updatePayerDropdown();
             updateCurrencyDropdowns();
             updateSummary();
             updateBaseCurrencyDisplay();
-            renderSettlementTable();
-        }
+            
+            // 事件監聽
+            settingsBtn.addEventListener('click', showSettingsPage);
+            document.getElementById('returnBtn').addEventListener('click', () => {
+                settingsPage.classList.remove('active');
+                mainPage.classList.add('active');
+            });
+            saveSettingsBtn.addEventListener('click', saveSettings);
+            addParticipantBtn.addEventListener('click', addParticipantField);
+            addCurrencyBtn.addEventListener('click', addCurrencyField);
+            addItemBtn.addEventListener('click', addNewExpense);
+            splitMethod.addEventListener('change', toggleCustomSplitSection);
+            closeModalBtn.addEventListener('click', closeModal);
+            saveEditBtn.addEventListener('click', saveEdit);
+            editSplitMethod.addEventListener('change', toggleEditCustomSplitSection);
+            
+            // 點擊模態框外部關閉
+            window.addEventListener('click', (e) => {
+                if (e.target === editModal) {
+                    closeModal();
+                }
+            });
+        });
 
+        // 顯示設置頁面
         function showSettingsPage() {
             mainPage.classList.remove('active');
             settingsPage.classList.add('active');
@@ -538,383 +565,654 @@
             renderCurrencySettings();
         }
 
-        function showMainPage() {
-            settingsPage.classList.remove('active');
-            mainPage.classList.add('active');
-            renderAll();
-        }
-
+        // 渲染參與人員設置
         function renderParticipantsSettings() {
             participantsList.innerHTML = '';
-            participants.forEach((p, i) => {
-                const item = document.createElement('div');
-                item.className = 'participant-item';
-                item.innerHTML = `
-                    <input type="text" class="form-input participant-input" value="${p}" data-index="${i}">
-                    <button class="icon-button remove-participant" data-index="${i}"><i class="fas fa-trash"></i></button>
+            participants.forEach((participant, index) => {
+                const participantDiv = document.createElement('div');
+                participantDiv.className = 'participant-item';
+                participantDiv.innerHTML = `
+                    <input type="text" class="participant-input" value="${participant}" data-index="${index}">
+                    <button class="icon-button remove-participant" data-index="${index}">
+                        <i class="fas fa-trash"></i>
+                    </button>
                 `;
-                participantsList.appendChild(item);
+                participantsList.appendChild(participantDiv);
             });
-            document.querySelectorAll('.remove-participant').forEach(b => b.addEventListener('click', (e) => {
-                const index = e.target.closest('button').dataset.index;
-                participants.splice(index, 1);
-                renderParticipantsSettings();
-            }));
+            
+            // 添加移除參與者的監聽事件
+            document.querySelectorAll('.remove-participant').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const index = parseInt(e.target.closest('.remove-participant').getAttribute('data-index'));
+                    participants.splice(index, 1);
+                    renderParticipantsSettings();
+                });
+            });
         }
 
+        // 渲染貨幣設置
+        function renderCurrencySettings() {
+            // 更新基礎貨幣選擇
+            baseCurrencySelect.innerHTML = '';
+            Object.keys(currencies).forEach(code => {
+                const option = document.createElement('option');
+                option.value = code;
+                option.textContent = `${code} (${currencies[code].symbol})`;
+                option.selected = (code === baseCurrency);
+                baseCurrencySelect.appendChild(option);
+            });
+            
+            // 更新貨幣列表
+            currencyList.innerHTML = '';
+            Object.entries(currencies).forEach(([code, data], index) => {
+                if (code === baseCurrency) return; // 跳過基礎貨幣
+                
+                const currencyDiv = document.createElement('div');
+                currencyDiv.className = 'currency-item';
+                currencyDiv.innerHTML = `
+                    <input type="text" class="currency-code" value="${code}" data-index="${index}" placeholder="貨幣代碼">
+                    <span>1 ${baseCurrency} = </span>
+                    <input type="number" class="currency-rate" value="${data.rate}" data-currency="${code}" placeholder="匯率" step="0.0001">
+                    <span>${code}</span>
+                    <button class="icon-button remove-currency" data-currency="${code}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                `;
+                currencyList.appendChild(currencyDiv);
+            });
+            
+            // 添加移除貨幣的監聽事件
+            document.querySelectorAll('.remove-currency').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const currencyCode = e.target.closest('.remove-currency').getAttribute('data-currency');
+                    delete currencies[currencyCode];
+                    renderCurrencySettings();
+                });
+            });
+        }
+
+        // 添加參與者字段
         function addParticipantField() {
-            participants.push('');
+            participants.push('新成員');
             renderParticipantsSettings();
         }
 
-        function renderCurrencySettings() {
-            baseCurrencySelect.innerHTML = '';
-            Object.keys(currencies).forEach(code => {
-                baseCurrencySelect.innerHTML += `<option value="${code}" ${code === baseCurrency ? 'selected' : ''}>${code} (${currencies[code].symbol})</option>`;
-            });
-
-            currencyList.innerHTML = '';
-            Object.entries(currencies).forEach(([code, data]) => {
-                if (code === baseCurrency) return;
-                const item = document.createElement('div');
-                item.className = 'currency-item';
-                item.innerHTML = `
-                    <input type="text" class="form-input currency-code" value="${code}" placeholder="代碼">
-                    <span>1 ${baseCurrency} = </span>
-                    <input type="number" class="form-input currency-rate" value="${data.rate}" placeholder="匯率" step="0.0001">
-                    <span>${code}</span>
-                    <button class="icon-button remove-currency" data-currency="${code}"><i class="fas fa-trash"></i></button>
-                `;
-                currencyList.appendChild(item);
-            });
-            document.querySelectorAll('.remove-currency').forEach(b => b.addEventListener('click', (e) => {
-                const currency = e.target.closest('button').dataset.currency;
-                delete currencies[currency];
-                renderCurrencySettings();
-            }));
-        }
-
+        // 添加貨幣字段
         function addCurrencyField() {
-            const newCode = `CUR${Object.keys(currencies).length + 1}`;
-            if (!currencies[newCode]) {
-                currencies[newCode] = { rate: 1, symbol: '?' };
-                renderCurrencySettings();
-            }
+            const newCode = `NEW${Object.keys(currencies).length + 1}`;
+            currencies[newCode] = { rate: 1, symbol: newCode + '$' };
+            renderCurrencySettings();
         }
 
+        // 保存設置
         function saveSettings() {
-            const pInputs = document.querySelectorAll('.participant-input');
-            const tempParticipants = [];
-            pInputs.forEach(input => {
-                if (input.value.trim()) tempParticipants.push(input.value.trim());
-            });
-            participants = tempParticipants;
-
+            // 保存參與者
+            const inputs = document.querySelectorAll('.participant-input');
+            participants = Array.from(inputs).map(input => input.value.trim()).filter(name => name !== '');
+            
+            // 保存基礎貨幣
             baseCurrency = baseCurrencySelect.value;
-            const cInputs = document.querySelectorAll('.currency-item');
-            const tempCurrencies = { [baseCurrency]: { rate: 1, symbol: currencies[baseCurrency]?.symbol || '$' } };
-            cInputs.forEach(item => {
-                const code = item.querySelector('.currency-code').value.toUpperCase().trim();
-                const rate = parseFloat(item.querySelector('.currency-rate').value);
-                if (code && !isNaN(rate)) {
-                    tempCurrencies[code] = { rate: rate, symbol: currencies[code]?.symbol || '?' };
+            
+            // 保存匯率
+            const rateInputs = document.querySelectorAll('.currency-rate');
+            rateInputs.forEach(input => {
+                const currencyCode = input.getAttribute('data-currency');
+                const newRate = parseFloat(input.value);
+                if (!isNaN(newRate) && newRate > 0) {
+                    currencies[currencyCode].rate = newRate;
                 }
             });
-            currencies = tempCurrencies;
-
+            
+            // 保存貨幣代碼
+            const codeInputs = document.querySelectorAll('.currency-code');
+            codeInputs.forEach(input => {
+                const oldCode = input.getAttribute('value');
+                const newCode = input.value.trim().toUpperCase();
+                
+                if (newCode && newCode !== oldCode && newCode !== baseCurrency) {
+                    if (currencies[oldCode]) {
+                        currencies[newCode] = { rate: currencies[oldCode].rate, symbol: newCode + '$' };
+                        delete currencies[oldCode];
+                    }
+                }
+            });
+            
             saveToLocalStorage();
-            showMainPage();
+            updatePayerDropdown();
+            updateCurrencyDropdowns();
+            updateBaseCurrencyDisplay();
+            
+            // 返回主頁
+            settingsPage.classList.remove('active');
+            mainPage.classList.add('active');
+            
+            // 重新渲染表格
+            renderExpenseTable();
+            updateSummary();
         }
 
+        // 渲染費用表格
         function renderExpenseTable() {
             expenseTableBody.innerHTML = '';
+            
             expenses.forEach((expense, index) => {
-                const row = expenseTableBody.insertRow();
-                row.innerHTML = `
-                    <td>${expense.name}</td>
-                    <td>${formatCurrency(expense.amount, expense.currency)}</td>
-                    <td>${renderSplitDetails(expense)}</td>
-                    <td>${expense.payer}</td>
-                    <td>
-                        <button class="icon-button" onclick="editExpense(${index})"><i class="fas fa-edit"></i></button>
-                        <button class="icon-button" onclick="deleteExpense(${index})"><i class="fas fa-trash"></i></button>
-                    </td>
+                const row = document.createElement('tr');
+                
+                // 項目列
+                const itemCell = document.createElement('td');
+                itemCell.textContent = expense.item;
+                row.appendChild(itemCell);
+                
+                // 金額列
+                const amountCell = document.createElement('td');
+                amountCell.className = 'currency-column';
+                const amount = expense?.totalAmount ?? 0;
+                const currencySymbol = currencies[expense.currency]?.symbol || expense.currency;
+                const convertedAmount = convertCurrency(amount, expense.currency, baseCurrency);
+                amountCell.innerHTML = `<strong>${currencySymbol}${amount.toFixed(2)}</strong> <small>(${currencies[baseCurrency].symbol}${convertedAmount.toFixed(2)})</small>`;
+                row.appendChild(amountCell);
+                
+                // 分攤詳情列
+                const splitsCell = document.createElement('td');
+                const splits = expense.splits || {};
+                splitsCell.innerHTML = Object.entries(splits)
+                    .map(([person, amount]) => {
+                        const convertedAmount = convertCurrency(amount, expense.currency, baseCurrency);
+                        return `${person}: ${currencies[expense.currency]?.symbol || expense.currency}${amount.toFixed(2)} (${currencies[baseCurrency].symbol}${convertedAmount.toFixed(2)})`;
+                    })
+                    .join('<br>') || '未設置分攤';
+                row.appendChild(splitsCell);
+                
+                // 支付者列
+                const payerCell = document.createElement('td');
+                payerCell.textContent = expense.payer;
+                row.appendChild(payerCell);
+                
+                // 操作列
+                const actionCell = document.createElement('td');
+                actionCell.innerHTML = `
+                    <div class="action-buttons">
+                        <button class="icon-button edit-item" data-index="${index}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="icon-button delete-item" data-index="${index}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
                 `;
+                row.appendChild(actionCell);
+                
+                expenseTableBody.appendChild(row);
+            });
+            
+            // 添加編輯和刪除事件監聽
+            document.querySelectorAll('.edit-item').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const index = parseInt(e.target.closest('.edit-item').getAttribute('data-index'));
+                    openEditModal(index);
+                });
+            });
+            
+            document.querySelectorAll('.delete-item').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const index = parseInt(e.target.closest('.delete-item').getAttribute('data-index'));
+                    deleteExpense(index);
+                });
+            });
+        }
+
+        // 更新支付者下拉選項
+        function updatePayerDropdown() {
+            newItemPayer.innerHTML = '';
+            editItemPayer.innerHTML = '';
+            
+            participants.forEach(participant => {
+                const option = document.createElement('option');
+                option.value = participant;
+                option.textContent = participant;
+                newItemPayer.appendChild(option);
+                
+                const editOption = option.cloneNode(true);
+                editItemPayer.appendChild(editOption);
+            });
+        }
+
+        // 更新貨幣下拉選項
+        function updateCurrencyDropdowns() {
+            newItemCurrency.innerHTML = '';
+            editItemCurrency.innerHTML = '';
+            
+            Object.keys(currencies).forEach(currencyCode => {
+                const option = document.createElement('option');
+                option.value = currencyCode;
+                option.textContent = `${currencyCode} (${currencies[currencyCode].symbol})`;
+                newItemCurrency.appendChild(option);
+                
+                const editOption = option.cloneNode(true);
+                editItemCurrency.appendChild(editOption);
             });
         }
         
-        function renderSplitDetails(expense) {
-            if (expense.split.method === 'equal') return `平均分攤`;
-            return Object.entries(expense.split.custom)
-                .map(([p, a]) => `${p}: ${formatCurrency(a, expense.currency)}`)
-                .join('<br>');
-        }
-
-        function addNewExpense() {
-            const name = newItemName.value.trim();
-            const amount = parseFloat(newItemAmount.value);
-            const currency = newItemCurrency.value;
-            const payer = newItemPayer.value;
-            const method = splitMethod.value;
-
-            if (!name || isNaN(amount) || amount <= 0) {
-                alert('請填寫有效的項目名稱和金額。');
-                return;
-            }
-
-            const split = { method };
-            if (method === 'custom') {
-                split.custom = {};
-                const customInputs = document.querySelectorAll('#customSplitContainer input');
-                let customTotal = 0;
-                for (const input of customInputs) {
-                    const pAmount = parseFloat(input.value) || 0;
-                    split.custom[input.dataset.participant] = pAmount;
-                    customTotal += pAmount;
-                }
-                if (Math.abs(customTotal - amount) > 0.01) {
-                    alert('自定義分攤總額與項目總金額不符！');
-                    return;
-                }
-            }
-
-            expenses.push({ name, amount, currency, payer, split });
-            saveToLocalStorage();
-            renderAll();
-            resetAddForm();
-        }
-
-        function resetAddForm() {
-            newItemName.value = '';
-            newItemAmount.value = '';
-            splitMethod.value = 'equal';
-            toggleCustomSplitSection('equal', customSplitSection, customSplitContainer);
-        }
-
-        function editExpense(index) {
-            currentEditIndex = index;
-            const expense = expenses[index];
-            editItemName.value = expense.name;
-            editItemAmount.value = expense.amount;
-            editItemCurrency.value = expense.currency;
-            editItemPayer.value = expense.payer;
-            editSplitMethod.value = expense.split.method;
-
-            updatePayerDropdown(editItemPayer, expense.payer);
-            updateCurrencyDropdowns(editItemCurrency, expense.currency);
-            toggleCustomSplitSection(expense.split.method, editCustomSplitSection, editCustomSplitContainer, expense.split.custom);
-
-            editModal.style.display = 'flex';
-        }
-
-        function saveEdit() {
-            if (currentEditIndex === -1) return;
-            const expense = expenses[currentEditIndex];
-            
-            expense.name = editItemName.value.trim();
-            expense.amount = parseFloat(editItemAmount.value);
-            expense.currency = editItemCurrency.value;
-            expense.payer = editItemPayer.value;
-            expense.split.method = editSplitMethod.value;
-
-            if (expense.split.method === 'custom') {
-                expense.split.custom = {};
-                const customInputs = document.querySelectorAll('#editCustomSplitContainer input');
-                let customTotal = 0;
-                for (const input of customInputs) {
-                    const pAmount = parseFloat(input.value) || 0;
-                    expense.split.custom[input.dataset.participant] = pAmount;
-                    customTotal += pAmount;
-                }
-                if (Math.abs(customTotal - expense.amount) > 0.01) {
-                    alert('自定義分攤總額與項目總金額不符！');
-                    return;
-                }
-            }
-
-            saveToLocalStorage();
-            renderAll();
-            closeModal();
-        }
-
-        function deleteExpense(index) {
-            if (confirm('確定要刪除此項目嗎？')) {
-                expenses.splice(index, 1);
-                saveToLocalStorage();
-                renderAll();
-            }
-        }
-
-        function closeModal() {
-            editModal.style.display = 'none';
-            currentEditIndex = -1;
-        }
-
-        function updatePayerDropdown(selectElement = newItemPayer, selectedPayer = null) {
-            selectElement.innerHTML = '';
-            participants.forEach(p => {
-                selectElement.innerHTML += `<option value="${p}" ${p === selectedPayer ? 'selected' : ''}>${p}</option>`;
-            });
-        }
-
-        function updateCurrencyDropdowns(selectElement = newItemCurrency, selectedCurrency = null) {
-            selectElement.innerHTML = '';
-            Object.keys(currencies).forEach(code => {
-                selectElement.innerHTML += `<option value="${code}" ${code === selectedCurrency ? 'selected' : ''}>${code}</option>`;
-            });
-        }
-
-        function toggleCustomSplitSection(method, section, container, customData = {}) {
-            if (method === 'custom') {
-                container.innerHTML = '';
-                participants.forEach(p => {
-                    const value = customData[p] || '';
-                    container.innerHTML += `
-                        <div class="split-item">
-                            <label>${p}</label>
-                            <input type="number" class="form-input" data-participant="${p}" placeholder="0.00" value="${value}">
-                        </div>
-                    `;
-                });
-                section.style.display = 'block';
-            } else {
-                section.style.display = 'none';
-            }
-        }
-
-        function convertTo_baseCurrency(amount, currencyCode) {
-            if (currencyCode === baseCurrency) return amount;
-            const rate = currencies[currencyCode]?.rate;
-            const baseRate = currencies[baseCurrency]?.rate || 1;
-            if (!rate) return 0; // Currency not found
-            return (amount / rate) * baseRate;
-        }
-
-        function calculateBalances() {
-            const balances = participants.reduce((acc, p) => ({ ...acc, [p]: 0 }), {});
-
-            expenses.forEach(expense => {
-                const amountInBase = convertTo_baseCurrency(expense.amount, expense.currency);
-                balances[expense.payer] += amountInBase;
-
-                if (expense.split.method === 'equal') {
-                    const share = amountInBase / participants.length;
-                    participants.forEach(p => { balances[p] -= share; });
-                } else { // custom
-                    Object.entries(expense.split.custom).forEach(([p, customAmount]) => {
-                        const customAmountInBase = convertTo_baseCurrency(customAmount, expense.currency);
-                        balances[p] -= customAmountInBase;
-                    });
-                }
-            });
-            return balances;
-        }
-
-        function updateSummary() {
-            const total = expenses.reduce((sum, e) => sum + convertTo_baseCurrency(e.amount, e.currency), 0);
-            totalAmountElement.textContent = formatCurrency(total, baseCurrency);
-
-            const balances = calculateBalances();
-            const totalOwed = Object.values(balances).filter(b => b < 0).reduce((sum, b) => sum - b, 0);
-            pendingAmountElement.textContent = formatCurrency(totalOwed, baseCurrency);
-            
-            participantsCountElement.textContent = `${participants.length}人`;
-
-            settlementDetails.innerHTML = '';
-            const settlements = calculateSettlements(balances);
-            settlements.forEach(({from, to, amount}) => {
-                const item = document.createElement('div');
-                item.className = 'settlement-item';
-                item.innerHTML = `<span>${from} <i class="fas fa-long-arrow-alt-right"></i> ${to}</span> <span>${formatCurrency(amount, baseCurrency)}</span>`;
-                settlementDetails.appendChild(item);
-            });
-        }
-
-        function renderSettlementTable() {
-            const balances = calculateBalances();
-            const totals = participants.reduce((acc, p) => ({ ...acc, [p]: { paid: 0, owed: 0 } }), {});
-
-            expenses.forEach(e => {
-                const amountInBase = convertTo_baseCurrency(e.amount, e.currency);
-                totals[e.payer].paid += amountInBase;
-
-                if (e.split.method === 'equal') {
-                    const share = amountInBase / participants.length;
-                    participants.forEach(p => { totals[p].owed += share; });
-                } else {
-                    Object.entries(e.split.custom).forEach(([p, customAmount]) => {
-                        totals[p].owed += convertTo_baseCurrency(customAmount, e.currency);
-                    });
-                }
-            });
-
-            settlementTableBody.innerHTML = '';
-            Object.entries(totals).forEach(([p, data]) => {
-                const balance = data.paid - data.owed;
-                const row = settlementTableBody.insertRow();
-                row.innerHTML = `
-                    <td>${p}</td>
-                    <td>${formatCurrency(data.owed, baseCurrency)}</td>
-                    <td>${formatCurrency(data.paid, baseCurrency)}</td>
-                    <td class="${balance >= 0 ? 'settlement-positive' : 'settlement-negative'}">${formatCurrency(balance, baseCurrency)}</td>
-                `;
-            });
-        }
-        
-        function calculateSettlements(balances) {
-            const debtors = Object.entries(balances).filter(([,b]) => b < 0).map(([p,b]) => ({p, a: -b}));
-            const creditors = Object.entries(balances).filter(([,b]) => b > 0).map(([p,b]) => ({p, a: b}));
-            const settlements = [];
-
-            debtors.forEach(d => {
-                creditors.forEach(c => {
-                    if (d.a > 0 && c.a > 0) {
-                        const amount = Math.min(d.a, c.a);
-                        settlements.push({ from: d.p, to: c.p, amount });
-                        d.a -= amount;
-                        c.a -= amount;
-                    }
-                });
-            });
-            return settlements;
-        }
-
+        // 更新基礎貨幣顯示
         function updateBaseCurrencyDisplay() {
-            document.querySelectorAll('.currency-badge').forEach(el => {
+            document.querySelectorAll('#baseCurrencyDisplay, #baseCurrencyDisplay2, #baseCurrencyDisplay3').forEach(el => {
                 el.textContent = baseCurrency;
             });
         }
 
-        function formatCurrency(amount, currencyCode) {
-            const symbol = currencies[currencyCode]?.symbol || '';
-            return `${symbol}${amount.toFixed(2)}`;
+        // 貨幣轉換函數
+        function convertCurrency(amount, fromCurrency, toCurrency) {
+            if (fromCurrency === toCurrency) return amount;
+            
+            // 先轉換為基礎貨幣，再轉換為目標貨幣
+            const baseRate = currencies[fromCurrency]?.rate || 1;
+            const targetRate = currencies[toCurrency]?.rate || 1;
+            
+            return amount * (targetRate / baseRate);
         }
 
-        function saveToLocalStorage() {
-            const data = { participants, expenses, baseCurrency, currencies };
-            localStorage.setItem('billSplitterData', JSON.stringify(data));
+        // 切換自定義分攤部分顯示
+        function toggleCustomSplitSection() {
+            if (splitMethod.value === 'custom') {
+                customSplitSection.style.display = 'block';
+                renderCustomSplitInputs();
+            } else {
+                customSplitSection.style.display = 'none';
+            }
         }
-
-        function loadFromLocalStorage() {
-            const data = JSON.parse(localStorage.getItem('billSplitterData'));
-            if (data) {
-                participants = data.participants || ['A', 'B'];
-                expenses = data.expenses || [];
-                baseCurrency = data.baseCurrency || 'USD';
-                currencies = data.currencies || { 'USD': { rate: 1, symbol: '$' } };
+        
+        function toggleEditCustomSplitSection() {
+            if (editSplitMethod.value === 'custom') {
+                editCustomSplitSection.style.display = 'block';
+                renderEditCustomSplitInputs();
+            } else {
+                editCustomSplitSection.style.display = 'none';
             }
         }
 
+        // 渲染自定義分攤輸入框
+        function renderCustomSplitInputs() {
+            customSplitContainer.innerHTML = '';
+            
+            participants.forEach(participant => {
+                const splitItem = document.createElement('div');
+                splitItem.className = 'split-item';
+                splitItem.innerHTML = `
+                    <label>${participant}:</label>
+                    <input type="number" class="form-input custom-split-input" data-person="${participant}" 
+                           placeholder="0.00" step="0.01">
+                `;
+                customSplitContainer.appendChild(splitItem);
+            });
+        }
+        
+        // 渲染編輯自定義分攤輸入框
+        function renderEditCustomSplitInputs() {
+            editCustomSplitContainer.innerHTML = '';
+            const expense = expenses[currentEditIndex];
+            const splits = expense.splits || {};
+            
+            participants.forEach(participant => {
+                const amount = splits[participant] || 0;
+                const splitItem = document.createElement('div');
+                splitItem.className = 'split-item';
+                splitItem.innerHTML = `
+                    <label>${participant}:</label>
+                    <input type="number" class="form-input edit-custom-split-input" data-person="${participant}" 
+                           value="${amount.toFixed(2)}" step="0.01">
+                `;
+                editCustomSplitContainer.appendChild(splitItem);
+            });
+        }
+
+        // 添加新費用
+        function addNewExpense() {
+            const itemName = newItemName.value.trim();
+            const totalAmount = parseFloat(newItemAmount.value);
+            const payer = newItemPayer.value;
+            const currency = newItemCurrency.value;
+            
+            if (itemName && !isNaN(totalAmount) && payer && currency) {
+                let splits = {};
+                
+                if (splitMethod.value === 'equal') {
+                    // 平均分攤
+                    const perPerson = totalAmount / participants.length;
+                    participants.forEach((participant, index) => {
+                        // 處理小數點精度問題，最後一個人承擔餘數
+                        if (index === participants.length - 1) {
+                            splits[participant] = totalAmount - (perPerson * (participants.length - 1));
+                        } else {
+                            splits[participant] = perPerson;
+                        }
+                    });
+                } else {
+                    // 自定義分攤
+                    const inputs = document.querySelectorAll('.custom-split-input');
+                    let customTotal = 0;
+                    
+                    inputs.forEach(input => {
+                        const person = input.getAttribute('data-person');
+                        const amount = parseFloat(input.value) || 0;
+                        splits[person] = amount;
+                        customTotal += amount;
+                    });
+                    
+                    // 檢查自定義金額總和是否等於總金額
+                    if (Math.abs(customTotal - totalAmount) > 0.01) {
+                        alert(`自定義分攤金額總和 (${customTotal.toFixed(2)}) 與總金額 (${totalAmount.toFixed(2)}) 不一致！`);
+                        return;
+                    }
+                }
+                
+                expenses.push({
+                    item: itemName,
+                    totalAmount: totalAmount,
+                    currency: currency,
+                    splits: splits,
+                    payer: payer
+                });
+                
+                saveToLocalStorage();
+                renderExpenseTable();
+                updateSummary();
+                
+                // 清空輸入框
+                newItemName.value = '';
+                newItemAmount.value = '';
+                splitMethod.value = 'equal';
+                customSplitSection.style.display = 'none';
+            } else {
+                alert('請填寫完整的項目信息');
+            }
+        }
+
+        // 打開編輯模態框
+        function openEditModal(index) {
+            currentEditIndex = index;
+            const expense = expenses[index];
+            
+            editItemName.value = expense.item;
+            editItemAmount.value = expense.totalAmount;
+            editItemCurrency.value = expense.currency;
+            editItemPayer.value = expense.payer;
+            
+            // 判斷是平均分攤還是自定義
+            const amounts = Object.values(expense.splits);
+            const isEqualSplit = amounts.length === participants.length && 
+                                new Set(amounts.map(a => a.toFixed(2))).size === 1;
+            
+            editSplitMethod.value = isEqualSplit ? 'equal' : 'custom';
+            
+            if (isEqualSplit) {
+                editCustomSplitSection.style.display = 'none';
+            } else {
+                editCustomSplitSection.style.display = 'block';
+                renderEditCustomSplitInputs();
+            }
+            
+            editModal.style.display = 'flex';
+        }
+
+        // 關閉模態框
+        function closeModal() {
+            editModal.style.display = 'none';
+        }
+
+        // 保存編輯
+        function saveEdit() {
+            if (currentEditIndex === -1) return;
+            
+            const itemName = editItemName.value.trim();
+            const totalAmount = parseFloat(editItemAmount.value);
+            const currency = editItemCurrency.value;
+            const payer = editItemPayer.value;
+            
+            if (itemName && !isNaN(totalAmount) && payer && currency) {
+                let splits = {};
+                
+                if (editSplitMethod.value === 'equal') {
+                    // 平均分攤
+                    const perPerson = totalAmount / participants.length;
+                    participants.forEach((participant, index) => {
+                        // 處理小數點精度問題，最後一個人承擔餘數
+                        if (index === participants.length - 1) {
+                            splits[participant] = totalAmount - (perPerson * (participants.length - 1));
+                        } else {
+                            splits[participant] = perPerson;
+                        }
+                    });
+                } else {
+                    // 自定義分攤
+                    const inputs = document.querySelectorAll('.edit-custom-split-input');
+                    let customTotal = 0;
+                    
+                    inputs.forEach(input => {
+                        const person = input.getAttribute('data-person');
+                        const amount = parseFloat(input.value) || 0;
+                        splits[person] = amount;
+                        customTotal += amount;
+                    });
+                    
+                    // 檢查自定義金額總和是否等於總金額
+                    if (Math.abs(customTotal - totalAmount) > 0.01) {
+                        alert(`自定義分攤金額總和 (${customTotal.toFixed(2)}) 與總金額 (${totalAmount.toFixed(2)}) 不一致！`);
+                        return;
+                    }
+                }
+                
+                expenses[currentEditIndex] = {
+                    item: itemName,
+                    totalAmount: totalAmount,
+                    currency: currency,
+                    splits: splits,
+                    payer: payer
+                };
+                
+                saveToLocalStorage();
+                renderExpenseTable();
+                updateSummary();
+                closeModal();
+            } else {
+                alert('請填寫完整的項目信息');
+            }
+        }
+
+        // 刪除費用
+        function deleteExpense(index) {
+            if (confirm(`確定要刪除 "${expenses[index].item}" 項目嗎？`)) {
+                expenses.splice(index, 1);
+                saveToLocalStorage();
+                renderExpenseTable();
+                updateSummary();
+            }
+        }
+
+        // 計算結算信息
+        function calculateSettlements() {
+            const settlements = {};
+            
+            // 初始化每個人的應付和已付金額
+            participants.forEach(participant => {
+                settlements[participant] = {
+                    shouldPay: 0,   // 應付總額
+                    paid: 0,        // 已付總額
+                    balance: 0      // 結算金額 (已付 - 應付)
+                };
+            });
+            
+            // 計算每個人的應付和已付金額
+            expenses.forEach(expense => {
+                // 累加支付者的已付金額（轉換為基礎貨幣）
+                const paidAmount = convertCurrency(expense.totalAmount, expense.currency, baseCurrency);
+                settlements[expense.payer].paid += paidAmount;
+                
+                // 累加每個人的應付金額（轉換為基礎貨幣）
+                Object.entries(expense.splits).forEach(([person, amount]) => {
+                    if (settlements[person]) {
+                        const shouldPayAmount = convertCurrency(amount, expense.currency, baseCurrency);
+                        settlements[person].shouldPay += shouldPayAmount;
+                    }
+                });
+            });
+            
+            // 計算每個人的結算金額
+            participants.forEach(participant => {
+                settlements[participant].balance = settlements[participant].paid - settlements[participant].shouldPay;
+            });
+            
+            return settlements;
+        }
+
+        // 生成結算詳情
+        function generateSettlementDetails(settlements) {
+            let detailsHTML = '';
+            let totalPending = 0;
+            
+            Object.entries(settlements).forEach(([person, data]) => {
+                if (data.balance > 0) {
+                    detailsHTML += `<div class="settlement-item"><span>${person} 應收:</span> <span class="settlement-positive">${currencies[baseCurrency].symbol}${data.balance.toFixed(2)}</span></div>`;
+                    totalPending += data.balance;
+                } else if (data.balance < 0) {
+                    detailsHTML += `<div class="settlement-item"><span>${person} 應付:</span> <span class="settlement-negative">${currencies[baseCurrency].symbol}${Math.abs(data.balance).toFixed(2)}</span></div>`;
+                }
+            });
+            
+            pendingAmountElement.textContent = `${currencies[baseCurrency].symbol}${totalPending.toFixed(2)}`;
+            settlementDetails.innerHTML = detailsHTML || '<div class="settlement-item">無需結算</div>';
+        }
+
+        // 渲染結算表格
+        function renderSettlementTable(settlements) {
+            settlementTableBody.innerHTML = '';
+            
+            Object.entries(settlements).forEach(([person, data]) => {
+                const row = document.createElement('tr');
+                
+                // 參與者列
+                const personCell = document.createElement('td');
+                personCell.textContent = person;
+                row.appendChild(personCell);
+                
+                // 應付總額列
+                const shouldPayCell = document.createElement('td');
+                shouldPayCell.textContent = `${currencies[baseCurrency].symbol}${data.shouldPay.toFixed(2)}`;
+                row.appendChild(shouldPayCell);
+                
+                // 已付總額列
+                const paidCell = document.createElement('td');
+                paidCell.textContent = `${currencies[baseCurrency].symbol}${data.paid.toFixed(2)}`;
+                row.appendChild(paidCell);
+                
+                // 結算金額列
+                const balanceCell = document.createElement('td');
+                if (data.balance > 0) {
+                    balanceCell.innerHTML = `<span class="settlement-positive">應收 ${currencies[baseCurrency].symbol}${data.balance.toFixed(2)}</span>`;
+                } else if (data.balance < 0) {
+                    balanceCell.innerHTML = `<span class="settlement-negative">應付 ${currencies[baseCurrency].symbol}${Math.abs(data.balance.toFixed(2))}</span>`;
+                } else {
+                    balanceCell.textContent = '已結清';
+                }
+                row.appendChild(balanceCell);
+                
+                settlementTableBody.appendChild(row);
+            });
+        }
+
+        // 更新摘要信息
+        function updateSummary() {
+            // 計算總支出（轉換為基礎貨幣）
+            let total = 0;
+            expenses.forEach(expense => {
+                total += convertCurrency(expense.totalAmount, expense.currency, baseCurrency);
+            });
+            
+            totalAmountElement.textContent = `${currencies[baseCurrency].symbol}${total.toFixed(2)}`;
+            
+            // 更新參與人數
+            participantsCountElement.textContent = `${participants.length}人`;
+            
+            // 計算結算信息
+            const settlements = calculateSettlements();
+            
+            // 生成結算詳情
+            generateSettlementDetails(settlements);
+            
+            // 渲染結算表格
+            renderSettlementTable(settlements);
+        }
+
+        // 保存到本地存儲
+        function saveToLocalStorage() {
+            localStorage.setItem('billSplitter_participants', JSON.stringify(participants));
+            localStorage.setItem('billSplitter_expenses', JSON.stringify(expenses));
+            localStorage.setItem('billSplitter_baseCurrency', baseCurrency);
+            localStorage.setItem('billSplitter_currencies', JSON.stringify(currencies));
+        }
+        
+        // 確認清除所有數據
         function confirmClearData() {
-            if (confirm('警告：這將清除所有參與者、項目和設置。此操作無法復原。確定要繼續嗎？')) {
-                localStorage.removeItem('billSplitterData');
-                // Reset to default state
-                participants = ['A', 'B'];
+            if (confirm('確定要清除所有數據嗎？此操作無法復原！')) {
+                // 清除本地存儲
+                localStorage.removeItem('billSplitter_participants');
+                localStorage.removeItem('billSplitter_expenses');
+                localStorage.removeItem('billSplitter_baseCurrency');
+                localStorage.removeItem('billSplitter_currencies');
+                
+                // 重置數據
+                participants = ['A', 'B', 'C', 'D'];
                 expenses = [];
-                baseCurrency = 'USD';
-                currencies = { 'USD': { rate: 1, symbol: '$' } };
-                renderAll();
-                showMainPage();
+                baseCurrency = 'HKD';
+                // currencies = {
+                //     'USD': { rate: 1, symbol: '$' },
+                //     'HKD': { rate: 7.8, symbol: 'HK$' },
+                //     'JPY': { rate: 110, symbol: '¥' },
+                //     'EUR': { rate: 0.85, symbol: '€' },
+                //     'GBP': { rate: 0.75, symbol: '£' },
+                //     'CNY': { rate: 6.5, symbol: '¥' },
+                //     'TWD': { rate: 28, symbol: 'NT$' }
+                // };
+                let currencies = {
+                    'HKD': { rate: 1, symbol: 'HK$' },
+                    'JPY': { rate: 18.97, symbol: 'JP¥' },
+                    'CNY': { rate: 0.92, symbol: '¥' },
+                    'TWD': { rate: 3.92, symbol: 'NT$' }
+                };
+                
+                // 重新渲染界面
+                renderParticipantsSettings();
+                renderCurrencySettings();
+                renderExpenseTable();
+                updatePayerDropdown();
+                updateCurrencyDropdowns();
+                updateBaseCurrencyDisplay();
+                updateSummary();
+                
+                alert('所有數據已清除！');
+            }
+        }
+
+        // 從本地存儲加載
+        function loadFromLocalStorage() {
+            const savedParticipants = localStorage.getItem('billSplitter_participants');
+            const savedExpenses = localStorage.getItem('billSplitter_expenses');
+            const savedBaseCurrency = localStorage.getItem('billSplitter_baseCurrency');
+            const savedCurrencies = localStorage.getItem('billSplitter_currencies');
+            
+            if (savedParticipants) {
+                participants = JSON.parse(savedParticipants);
+            }
+            
+            if (savedExpenses) {
+                expenses = JSON.parse(savedExpenses);
+            }
+            
+            if (savedBaseCurrency) {
+                baseCurrency = savedBaseCurrency;
+            }
+            
+            if (savedCurrencies) {
+                currencies = JSON.parse(savedCurrencies);
             }
         }
     </script>
