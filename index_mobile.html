@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>賬單分攤應用 (手機版)</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* --- Global Mobile-First Styles --- */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Noto Sans TC', 'PingFang TC', 'Hiragino Sans GB', 'Microsoft JhengHei', 'Helvetica Neue', 'Segoe UI', Arial, sans-serif;
+        }
+        
+        body {
+            background-color: #f0f2f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            width: 100%;
+            background: #f0f2f5;
+        }
+        
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%);
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        h1 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        .nav-button {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* --- Page Structure --- */
+        .page {
+            display: none;
+            padding: 15px;
+        }
+        
+        .page.active {
+            display: block;
+        }
+
+        /* --- Summary Cards --- */
+        .summary-cards {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border-left: 4px solid #4b6cb7;
+        }
+        
+        .card h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        
+        .card .amount {
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .settlement-details {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #ddd;
+        }
+        
+        .settlement-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        /* --- Tables --- */
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            margin-bottom: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            white-space: nowrap; /* Prevent text wrapping */
+        }
+        
+        .data-table th, .data-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eaeaea;
+            font-size: 14px;
+        }
+        
+        .data-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+            position: sticky;
+            left: 0; /* For first column */
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* --- Forms --- */
+        .add-item-form, .settings-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+            margin-top: 20px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            -webkit-appearance: none; /* Fix for iOS styling */
+        }
+
+        .split-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        /* --- Buttons --- */
+        .btn {
+            background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%);
+            color: white;
+            border: none;
+            padding: 14px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            width: 100%;
+            text-align: center;
+            display: block;
+        }
+
+        .clear-button {
+             background: linear-gradient(135deg, #e31b1b 0%, #7d2e2e 100%);
+        }
+
+        .settings-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .icon-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            color: #6c757d;
+            padding: 8px;
+        }
+
+        /* --- Settings Page --- */
+        .settings-section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        .settings-section:last-child { border-bottom: none; }
+
+        .participant-item, .currency-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            gap: 10px;
+        }
+        .participant-input, .currency-rate { flex: 1; }
+        .currency-code { width: 80px; }
+
+        /* --- Modal --- */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #6c757d;
+        }
+        
+        /* Utility Classes */
+        .settlement-positive { color: #27ae60; }
+        .settlement-negative { color: #e74c3c; }
+        .currency-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background-color: #e9ecef;
+            color: #495057;
+            font-size: 12px;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-receipt"></i> 賬單分攤</h1>
+            <button id="settingsBtn" class="nav-button">
+                <i class="fas fa-cog"></i> 設置
+            </button>
+        </header>
+
+        <!-- Main Page -->
+        <div id="mainPage" class="page active">
+            <div class="summary-cards">
+                <div class="card">
+                    <h3>總支出 <span class="currency-badge" id="baseCurrencyDisplay">USD</span></h3>
+                    <div class="amount" id="totalAmount">$0.00</div>
+                </div>
+                <div class="card">
+                    <h3>待結算 <span class="currency-badge" id="baseCurrencyDisplay2">USD</span></h3>
+                    <div class="amount" id="pendingAmount">$0.00</div>
+                    <div class="settlement-details" id="settlementDetails"></div>
+                </div>
+                <div class="card">
+                    <h3>參與人數</h3>
+                    <div class="amount" id="participantsCount">0人</div>
+                </div>
+            </div>
+
+            <h3><i class="fas fa-money-bill-wave"></i> 結算詳情 <span class="currency-badge" id="baseCurrencyDisplay3">USD</span></h3>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>參與者</th>
+                            <th>應付總額</th>
+                            <th>已付總額</th>
+                            <th>結算金額</th>
+                        </tr>
+                    </thead>
+                    <tbody id="settlementTableBody"></tbody>
+                </table>
+            </div>
+
+            <h3><i class="fas fa-list"></i> 賬單明細</h3>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>項目</th>
+                            <th>總金額</th>
+                            <th>分攤詳情</th>
+                            <th>支付者</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expenseTableBody"></tbody>
+                </table>
+            </div>
+
+            <div class="add-item-form">
+                <h2><i class="fas fa-plus-circle"></i> 添加新項目</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="newItemName">項目名稱</label>
+                        <input type="text" id="newItemName" class="form-input" placeholder="例如：機票、酒店等">
+                    </div>
+                    <div class="form-group">
+                        <label for="newItemAmount">總金額</label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="number" id="newItemAmount" class="form-input" placeholder="0.00" step="0.01" style="flex: 2;">
+                            <select id="newItemCurrency" class="form-input" style="flex: 1;"></select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="newItemPayer">支付者</label>
+                        <select id="newItemPayer" class="form-input"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>分攤方式</label>
+                        <select id="splitMethod" class="form-input">
+                            <option value="equal">平均分攤</option>
+                            <option value="custom">自定義金額</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="customSplitSection" style="display: none; margin-top: 15px;">
+                    <label>為每位參與者指定金額</label>
+                    <div id="customSplitContainer" class="split-grid"></div>
+                </div>
+                
+                <button id="addItemBtn" class="btn">添加項目</button>
+            </div>
+        </div>
+
+        <!-- Settings Page -->
+        <div id="settingsPage" class="page">
+            <div class="settings-container">
+                <div class="settings-section">
+                    <h2><i class="fas fa-users"></i> 設置參與人員</h2>
+                    <div id="participantsList"></div>
+                    <button id="addParticipantBtn" class="btn" style="margin-top: 15px; background: #5cb85c;"><i class="fas fa-plus"></i> 添加人員</button>
+                </div>
+                
+                <div class="settings-section">
+                    <h2><i class="fas fa-money-bill"></i> 貨幣設置</h2>
+                    <div class="form-group">
+                        <label for="baseCurrency">基礎貨幣</label>
+                        <select id="baseCurrency" class="form-input"></select>
+                    </div>
+                    
+                    <h3>匯率設置 (1 基礎貨幣 = ? 外幣)</h3>
+                    <div id="currencyList"></div>
+                    <button id="addCurrencyBtn" class="btn" style="margin-top: 15px; background: #5cb85c;"><i class="fas fa-plus"></i> 添加貨幣</button>
+                </div>
+                
+                <div class="settings-buttons">
+                    <button id="returnBtn" class="btn" style="background: #6c757d;">
+                        <i class="fas fa-arrow-left"></i> 返回
+                    </button>
+                    <button id="saveSettingsBtn" class="btn">
+                        <i class="fas fa-save"></i> 保存設置
+                    </button>
+                    <button class="btn clear-button" onclick="confirmClearData()">
+                        <i class="fas fa-trash-alt"></i> 清除所有數據
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>編輯項目</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="editItemName">項目名稱</label>
+                    <input type="text" id="editItemName" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label for="editItemAmount">總金額</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="number" id="editItemAmount" class="form-input" step="0.01" style="flex: 2;">
+                        <select id="editItemCurrency" class="form-input" style="flex: 1;"></select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="editItemPayer">支付者</label>
+                    <select id="editItemPayer" class="form-input"></select>
+                </div>
+                <div class="form-group">
+                    <label>分攤方式</label>
+                    <select id="editSplitMethod" class="form-input">
+                        <option value="equal">平均分攤</option>
+                        <option value="custom">自定義金額</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div id="editCustomSplitSection" style="display: none; margin-top: 15px;">
+                <label>為每位參與者指定金額</label>
+                <div id="editCustomSplitContainer" class="split-grid"></div>
+            </div>
+            
+            <button id="saveEditBtn" class="btn" style="margin-top: 20px;">保存更改</button>
+        </div>
+    </div>
+
+    <script>
+        // The entire JavaScript from the original index.html is copied here.
+        // It is long, so it's represented by this comment, but the full script is included in the file.
+        let participants = ['A', 'B', 'C', 'D'];
+        let expenses = [];
+        let baseCurrency = 'HKD';
+        let currencies = {
+            'HKD': { rate: 1, symbol: 'HK$' },
+            'JPY': { rate: 18.97, symbol: 'JP¥' },
+            'CNY': { rate: 0.92, symbol: '¥' },
+            'TWD': { rate: 3.92, symbol: 'NT$' }
+        };
+
+        const mainPage = document.getElementById('mainPage');
+        const settingsPage = document.getElementById('settingsPage');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+        const addParticipantBtn = document.getElementById('addParticipantBtn');
+        const addCurrencyBtn = document.getElementById('addCurrencyBtn');
+        const participantsList = document.getElementById('participantsList');
+        const currencyList = document.getElementById('currencyList');
+        const baseCurrencySelect = document.getElementById('baseCurrency');
+        const expenseTableBody = document.getElementById('expenseTableBody');
+        const newItemPayer = document.getElementById('newItemPayer');
+        const newItemCurrency = document.getElementById('newItemCurrency');
+        const addItemBtn = document.getElementById('addItemBtn');
+        const newItemName = document.getElementById('newItemName');
+        const newItemAmount = document.getElementById('newItemAmount');
+        const splitMethod = document.getElementById('splitMethod');
+        const customSplitSection = document.getElementById('customSplitSection');
+        const customSplitContainer = document.getElementById('customSplitContainer');
+        const totalAmountElement = document.getElementById('totalAmount');
+        const pendingAmountElement = document.getElementById('pendingAmount');
+        const participantsCountElement = document.getElementById('participantsCount');
+        const editModal = document.getElementById('editModal');
+        const closeModalBtn = document.querySelector('.close-modal');
+        const saveEditBtn = document.getElementById('saveEditBtn');
+        const editItemName = document.getElementById('editItemName');
+        const editItemAmount = document.getElementById('editItemAmount');
+        const editItemCurrency = document.getElementById('editItemCurrency');
+        const editItemPayer = document.getElementById('editItemPayer');
+        const editSplitMethod = document.getElementById('editSplitMethod');
+        const editCustomSplitSection = document.getElementById('editCustomSplitSection');
+        const editCustomSplitContainer = document.getElementById('editCustomSplitContainer');
+        const settlementTableBody = document.getElementById('settlementTableBody');
+        const settlementDetails = document.getElementById('settlementDetails');
+
+        let currentEditIndex = -1;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFromLocalStorage();
+            renderAll();
+            
+            settingsBtn.addEventListener('click', showSettingsPage);
+            document.getElementById('returnBtn').addEventListener('click', showMainPage);
+            saveSettingsBtn.addEventListener('click', saveSettings);
+            addParticipantBtn.addEventListener('click', addParticipantField);
+            addCurrencyBtn.addEventListener('click', addCurrencyField);
+            addItemBtn.addEventListener('click', addNewExpense);
+            splitMethod.addEventListener('change', () => toggleCustomSplitSection(splitMethod.value, customSplitSection, customSplitContainer));
+            closeModalBtn.addEventListener('click', closeModal);
+            saveEditBtn.addEventListener('click', saveEdit);
+            editSplitMethod.addEventListener('change', () => toggleCustomSplitSection(editSplitMethod.value, editCustomSplitSection, editCustomSplitContainer));
+            
+            window.addEventListener('click', (e) => {
+                if (e.target === editModal) closeModal();
+            });
+        });
+
+        function renderAll() {
+            renderExpenseTable();
+            updatePayerDropdown();
+            updateCurrencyDropdowns();
+            updateSummary();
+            updateBaseCurrencyDisplay();
+            renderSettlementTable();
+        }
+
+        function showSettingsPage() {
+            mainPage.classList.remove('active');
+            settingsPage.classList.add('active');
+            renderParticipantsSettings();
+            renderCurrencySettings();
+        }
+
+        function showMainPage() {
+            settingsPage.classList.remove('active');
+            mainPage.classList.add('active');
+            renderAll();
+        }
+
+        function renderParticipantsSettings() {
+            participantsList.innerHTML = '';
+            participants.forEach((p, i) => {
+                const item = document.createElement('div');
+                item.className = 'participant-item';
+                item.innerHTML = `
+                    <input type="text" class="form-input participant-input" value="${p}" data-index="${i}">
+                    <button class="icon-button remove-participant" data-index="${i}"><i class="fas fa-trash"></i></button>
+                `;
+                participantsList.appendChild(item);
+            });
+            document.querySelectorAll('.remove-participant').forEach(b => b.addEventListener('click', (e) => {
+                const index = e.target.closest('button').dataset.index;
+                participants.splice(index, 1);
+                renderParticipantsSettings();
+            }));
+        }
+
+        function addParticipantField() {
+            participants.push('');
+            renderParticipantsSettings();
+        }
+
+        function renderCurrencySettings() {
+            baseCurrencySelect.innerHTML = '';
+            Object.keys(currencies).forEach(code => {
+                baseCurrencySelect.innerHTML += `<option value="${code}" ${code === baseCurrency ? 'selected' : ''}>${code} (${currencies[code].symbol})</option>`;
+            });
+
+            currencyList.innerHTML = '';
+            Object.entries(currencies).forEach(([code, data]) => {
+                if (code === baseCurrency) return;
+                const item = document.createElement('div');
+                item.className = 'currency-item';
+                item.innerHTML = `
+                    <input type="text" class="form-input currency-code" value="${code}" placeholder="代碼">
+                    <span>1 ${baseCurrency} = </span>
+                    <input type="number" class="form-input currency-rate" value="${data.rate}" placeholder="匯率" step="0.0001">
+                    <span>${code}</span>
+                    <button class="icon-button remove-currency" data-currency="${code}"><i class="fas fa-trash"></i></button>
+                `;
+                currencyList.appendChild(item);
+            });
+            document.querySelectorAll('.remove-currency').forEach(b => b.addEventListener('click', (e) => {
+                const currency = e.target.closest('button').dataset.currency;
+                delete currencies[currency];
+                renderCurrencySettings();
+            }));
+        }
+
+        function addCurrencyField() {
+            const newCode = `CUR${Object.keys(currencies).length + 1}`;
+            if (!currencies[newCode]) {
+                currencies[newCode] = { rate: 1, symbol: '?' };
+                renderCurrencySettings();
+            }
+        }
+
+        function saveSettings() {
+            const pInputs = document.querySelectorAll('.participant-input');
+            const tempParticipants = [];
+            pInputs.forEach(input => {
+                if (input.value.trim()) tempParticipants.push(input.value.trim());
+            });
+            participants = tempParticipants;
+
+            baseCurrency = baseCurrencySelect.value;
+            const cInputs = document.querySelectorAll('.currency-item');
+            const tempCurrencies = { [baseCurrency]: { rate: 1, symbol: currencies[baseCurrency]?.symbol || '$' } };
+            cInputs.forEach(item => {
+                const code = item.querySelector('.currency-code').value.toUpperCase().trim();
+                const rate = parseFloat(item.querySelector('.currency-rate').value);
+                if (code && !isNaN(rate)) {
+                    tempCurrencies[code] = { rate: rate, symbol: currencies[code]?.symbol || '?' };
+                }
+            });
+            currencies = tempCurrencies;
+
+            saveToLocalStorage();
+            showMainPage();
+        }
+
+        function renderExpenseTable() {
+            expenseTableBody.innerHTML = '';
+            expenses.forEach((expense, index) => {
+                const row = expenseTableBody.insertRow();
+                row.innerHTML = `
+                    <td>${expense.name}</td>
+                    <td>${formatCurrency(expense.amount, expense.currency)}</td>
+                    <td>${renderSplitDetails(expense)}</td>
+                    <td>${expense.payer}</td>
+                    <td>
+                        <button class="icon-button" onclick="editExpense(${index})"><i class="fas fa-edit"></i></button>
+                        <button class="icon-button" onclick="deleteExpense(${index})"><i class="fas fa-trash"></i></button>
+                    </td>
+                `;
+            });
+        }
+        
+        function renderSplitDetails(expense) {
+            if (expense.split.method === 'equal') return `平均分攤`;
+            return Object.entries(expense.split.custom)
+                .map(([p, a]) => `${p}: ${formatCurrency(a, expense.currency)}`)
+                .join('<br>');
+        }
+
+        function addNewExpense() {
+            const name = newItemName.value.trim();
+            const amount = parseFloat(newItemAmount.value);
+            const currency = newItemCurrency.value;
+            const payer = newItemPayer.value;
+            const method = splitMethod.value;
+
+            if (!name || isNaN(amount) || amount <= 0) {
+                alert('請填寫有效的項目名稱和金額。');
+                return;
+            }
+
+            const split = { method };
+            if (method === 'custom') {
+                split.custom = {};
+                const customInputs = document.querySelectorAll('#customSplitContainer input');
+                let customTotal = 0;
+                for (const input of customInputs) {
+                    const pAmount = parseFloat(input.value) || 0;
+                    split.custom[input.dataset.participant] = pAmount;
+                    customTotal += pAmount;
+                }
+                if (Math.abs(customTotal - amount) > 0.01) {
+                    alert('自定義分攤總額與項目總金額不符！');
+                    return;
+                }
+            }
+
+            expenses.push({ name, amount, currency, payer, split });
+            saveToLocalStorage();
+            renderAll();
+            resetAddForm();
+        }
+
+        function resetAddForm() {
+            newItemName.value = '';
+            newItemAmount.value = '';
+            splitMethod.value = 'equal';
+            toggleCustomSplitSection('equal', customSplitSection, customSplitContainer);
+        }
+
+        function editExpense(index) {
+            currentEditIndex = index;
+            const expense = expenses[index];
+            editItemName.value = expense.name;
+            editItemAmount.value = expense.amount;
+            editItemCurrency.value = expense.currency;
+            editItemPayer.value = expense.payer;
+            editSplitMethod.value = expense.split.method;
+
+            updatePayerDropdown(editItemPayer, expense.payer);
+            updateCurrencyDropdowns(editItemCurrency, expense.currency);
+            toggleCustomSplitSection(expense.split.method, editCustomSplitSection, editCustomSplitContainer, expense.split.custom);
+
+            editModal.style.display = 'flex';
+        }
+
+        function saveEdit() {
+            if (currentEditIndex === -1) return;
+            const expense = expenses[currentEditIndex];
+            
+            expense.name = editItemName.value.trim();
+            expense.amount = parseFloat(editItemAmount.value);
+            expense.currency = editItemCurrency.value;
+            expense.payer = editItemPayer.value;
+            expense.split.method = editSplitMethod.value;
+
+            if (expense.split.method === 'custom') {
+                expense.split.custom = {};
+                const customInputs = document.querySelectorAll('#editCustomSplitContainer input');
+                let customTotal = 0;
+                for (const input of customInputs) {
+                    const pAmount = parseFloat(input.value) || 0;
+                    expense.split.custom[input.dataset.participant] = pAmount;
+                    customTotal += pAmount;
+                }
+                if (Math.abs(customTotal - expense.amount) > 0.01) {
+                    alert('自定義分攤總額與項目總金額不符！');
+                    return;
+                }
+            }
+
+            saveToLocalStorage();
+            renderAll();
+            closeModal();
+        }
+
+        function deleteExpense(index) {
+            if (confirm('確定要刪除此項目嗎？')) {
+                expenses.splice(index, 1);
+                saveToLocalStorage();
+                renderAll();
+            }
+        }
+
+        function closeModal() {
+            editModal.style.display = 'none';
+            currentEditIndex = -1;
+        }
+
+        function updatePayerDropdown(selectElement = newItemPayer, selectedPayer = null) {
+            selectElement.innerHTML = '';
+            participants.forEach(p => {
+                selectElement.innerHTML += `<option value="${p}" ${p === selectedPayer ? 'selected' : ''}>${p}</option>`;
+            });
+        }
+
+        function updateCurrencyDropdowns(selectElement = newItemCurrency, selectedCurrency = null) {
+            selectElement.innerHTML = '';
+            Object.keys(currencies).forEach(code => {
+                selectElement.innerHTML += `<option value="${code}" ${code === selectedCurrency ? 'selected' : ''}>${code}</option>`;
+            });
+        }
+
+        function toggleCustomSplitSection(method, section, container, customData = {}) {
+            if (method === 'custom') {
+                container.innerHTML = '';
+                participants.forEach(p => {
+                    const value = customData[p] || '';
+                    container.innerHTML += `
+                        <div class="split-item">
+                            <label>${p}</label>
+                            <input type="number" class="form-input" data-participant="${p}" placeholder="0.00" value="${value}">
+                        </div>
+                    `;
+                });
+                section.style.display = 'block';
+            } else {
+                section.style.display = 'none';
+            }
+        }
+
+        function convertTo_baseCurrency(amount, currencyCode) {
+            if (currencyCode === baseCurrency) return amount;
+            const rate = currencies[currencyCode]?.rate;
+            const baseRate = currencies[baseCurrency]?.rate || 1;
+            if (!rate) return 0; // Currency not found
+            return (amount / rate) * baseRate;
+        }
+
+        function calculateBalances() {
+            const balances = participants.reduce((acc, p) => ({ ...acc, [p]: 0 }), {});
+
+            expenses.forEach(expense => {
+                const amountInBase = convertTo_baseCurrency(expense.amount, expense.currency);
+                balances[expense.payer] += amountInBase;
+
+                if (expense.split.method === 'equal') {
+                    const share = amountInBase / participants.length;
+                    participants.forEach(p => { balances[p] -= share; });
+                } else { // custom
+                    Object.entries(expense.split.custom).forEach(([p, customAmount]) => {
+                        const customAmountInBase = convertTo_baseCurrency(customAmount, expense.currency);
+                        balances[p] -= customAmountInBase;
+                    });
+                }
+            });
+            return balances;
+        }
+
+        function updateSummary() {
+            const total = expenses.reduce((sum, e) => sum + convertTo_baseCurrency(e.amount, e.currency), 0);
+            totalAmountElement.textContent = formatCurrency(total, baseCurrency);
+
+            const balances = calculateBalances();
+            const totalOwed = Object.values(balances).filter(b => b < 0).reduce((sum, b) => sum - b, 0);
+            pendingAmountElement.textContent = formatCurrency(totalOwed, baseCurrency);
+            
+            participantsCountElement.textContent = `${participants.length}人`;
+
+            settlementDetails.innerHTML = '';
+            const settlements = calculateSettlements(balances);
+            settlements.forEach(({from, to, amount}) => {
+                const item = document.createElement('div');
+                item.className = 'settlement-item';
+                item.innerHTML = `<span>${from} <i class="fas fa-long-arrow-alt-right"></i> ${to}</span> <span>${formatCurrency(amount, baseCurrency)}</span>`;
+                settlementDetails.appendChild(item);
+            });
+        }
+
+        function renderSettlementTable() {
+            const balances = calculateBalances();
+            const totals = participants.reduce((acc, p) => ({ ...acc, [p]: { paid: 0, owed: 0 } }), {});
+
+            expenses.forEach(e => {
+                const amountInBase = convertTo_baseCurrency(e.amount, e.currency);
+                totals[e.payer].paid += amountInBase;
+
+                if (e.split.method === 'equal') {
+                    const share = amountInBase / participants.length;
+                    participants.forEach(p => { totals[p].owed += share; });
+                } else {
+                    Object.entries(e.split.custom).forEach(([p, customAmount]) => {
+                        totals[p].owed += convertTo_baseCurrency(customAmount, e.currency);
+                    });
+                }
+            });
+
+            settlementTableBody.innerHTML = '';
+            Object.entries(totals).forEach(([p, data]) => {
+                const balance = data.paid - data.owed;
+                const row = settlementTableBody.insertRow();
+                row.innerHTML = `
+                    <td>${p}</td>
+                    <td>${formatCurrency(data.owed, baseCurrency)}</td>
+                    <td>${formatCurrency(data.paid, baseCurrency)}</td>
+                    <td class="${balance >= 0 ? 'settlement-positive' : 'settlement-negative'}">${formatCurrency(balance, baseCurrency)}</td>
+                `;
+            });
+        }
+        
+        function calculateSettlements(balances) {
+            const debtors = Object.entries(balances).filter(([,b]) => b < 0).map(([p,b]) => ({p, a: -b}));
+            const creditors = Object.entries(balances).filter(([,b]) => b > 0).map(([p,b]) => ({p, a: b}));
+            const settlements = [];
+
+            debtors.forEach(d => {
+                creditors.forEach(c => {
+                    if (d.a > 0 && c.a > 0) {
+                        const amount = Math.min(d.a, c.a);
+                        settlements.push({ from: d.p, to: c.p, amount });
+                        d.a -= amount;
+                        c.a -= amount;
+                    }
+                });
+            });
+            return settlements;
+        }
+
+        function updateBaseCurrencyDisplay() {
+            document.querySelectorAll('.currency-badge').forEach(el => {
+                el.textContent = baseCurrency;
+            });
+        }
+
+        function formatCurrency(amount, currencyCode) {
+            const symbol = currencies[currencyCode]?.symbol || '';
+            return `${symbol}${amount.toFixed(2)}`;
+        }
+
+        function saveToLocalStorage() {
+            const data = { participants, expenses, baseCurrency, currencies };
+            localStorage.setItem('billSplitterData', JSON.stringify(data));
+        }
+
+        function loadFromLocalStorage() {
+            const data = JSON.parse(localStorage.getItem('billSplitterData'));
+            if (data) {
+                participants = data.participants || ['A', 'B'];
+                expenses = data.expenses || [];
+                baseCurrency = data.baseCurrency || 'USD';
+                currencies = data.currencies || { 'USD': { rate: 1, symbol: '$' } };
+            }
+        }
+
+        function confirmClearData() {
+            if (confirm('警告：這將清除所有參與者、項目和設置。此操作無法復原。確定要繼續嗎？')) {
+                localStorage.removeItem('billSplitterData');
+                // Reset to default state
+                participants = ['A', 'B'];
+                expenses = [];
+                baseCurrency = 'USD';
+                currencies = { 'USD': { rate: 1, symbol: '$' } };
+                renderAll();
+                showMainPage();
+            }
+        }
+    </script>
+</body>
+</html>
