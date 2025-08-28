@@ -235,6 +235,41 @@
             font-size: 16px;
         }
 
+        .currency-item {
+            display: flex;
+            flex-direction: column;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+            gap: 8px;
+        }
+
+        .currency-item:last-child {
+            border-bottom: none;
+        }
+
+        /* First row: currency code */
+        .row1 {
+            display: flex;
+            justify-content: flex-start;
+        }
+
+        .currency-code {
+            width: 100px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            text-transform: uppercase;
+        }
+
+        /* Second row: rate display */
+        .row2 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 16px;
+        }
+
         .currency-rate {
             flex: 1;
             padding: 10px;
@@ -243,27 +278,11 @@
             font-size: 16px;
         }
 
-        .currency-item {
+        /* Third row: centered remove button */
+        .row3 {
             display: flex;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid #eee;
-            gap: 10px;
-            flex-direction: column;
-            align-items: stretch;
-        }
-        
-        .currency-item:last-child {
-            border-bottom: none;
-        }
-        
-        .currency-code {
-            width: 100px;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 16px;
-            text-transform: uppercase;
+            justify-content: center; /* centers the button */
+            margin-top: 4px;
         }
 
         /* --- Modal --- */
@@ -631,13 +650,19 @@
                 const currencyDiv = document.createElement('div');
                 currencyDiv.className = 'currency-item';
                 currencyDiv.innerHTML = `
-                    <input type="text" class="currency-code" value="${code}" data-index="${index}" placeholder="貨幣代碼">
-                    <span>1 ${baseCurrency} = </span>
-                    <input type="number" class="currency-rate" value="${data.rate}" data-currency="${code}" placeholder="匯率" step="0.0001">
-                    <span>${code}</span>
-                    <button class="icon-button remove-currency" data-currency="${code}">
-                        <i class="fas fa-trash"></i>
-                    </button>
+                    <div class="row1">
+                        <input type="text" class="currency-code" value="${code}" data-index="${index}" placeholder="貨幣代碼">
+                    </div>
+                    <div class="row2">
+                        <span>1 ${baseCurrency} = </span>
+                        <input type="number" class="currency-rate" value="${data.rate}" data-currency="${code}" placeholder="匯率" step="0.0001">
+                        <span>${code}</span>
+                    </div>
+                    <div class="row3">
+                        <button class="icon-button remove-currency" data-currency="${code}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
                 `;
                 currencyList.appendChild(currencyDiv);
             });
